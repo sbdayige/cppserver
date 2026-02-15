@@ -11,6 +11,9 @@ endif()
 
 add_definitions(-D_GNU_SOURCE)
 
+# Export compile commands for IDEs (IntelliSense)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 find_package(Threads REQUIRED)
 
 # Project layout
@@ -32,12 +35,12 @@ target_compile_options(core PRIVATE -Wall -Wextra)
 
 add_executable(client ${SRC_DIR}/client.cpp)
 target_compile_options(client PRIVATE -Wall -Wextra)
-target_include_directories(client PRIVATE ${SRC_DIR} ${SRC_DIR}/tools)
+target_include_directories(client PRIVATE ${SRC_DIR} ${SRC_DIR}/tools ${SRC_DIR}/include)
 target_link_libraries(client PRIVATE Threads::Threads)
 
 add_executable(server ${SRC_DIR}/server.cpp)
 target_compile_options(server PRIVATE -Wall -Wextra)
-target_include_directories(server PRIVATE ${SRC_DIR} ${SRC_DIR}/tools)
+target_include_directories(server PRIVATE ${SRC_DIR} ${SRC_DIR}/tools ${SRC_DIR}/include)
 target_link_libraries(server PRIVATE core tools Threads::Threads)
 
 message(STATUS "Configuring cppserver (client + server) in ${CMAKE_CURRENT_SOURCE_DIR}")

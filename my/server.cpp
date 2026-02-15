@@ -50,24 +50,26 @@ int main()
     serverSocket->listen();
     serverSocket->setnonblocking();
     Epoll *epoll = new Epoll();
-    epoll->addFd(serverSocket->getFd(), EPOLLIN | EPOLLET);
+    Channel *serverChannel = new Channel(epoll, serverSocket->getFd());
+    serverChannel->enableReading();
     while (true)
     {
-        std::vector<epoll_event> events = epoll->poll();
-        int nfds = events.size();
+        std::vector<Channel *> channels = epoll->poll();
+        int nfds = channels.size();
         for (int i = 0; i < nfds; ++i)
         {
-            if (events[i].data.fd == serverSocket->getFd())
+            if (channels[i]->getFd() == serverSocket->getFd())
             {
                 InetAddress *clnt_addr = new InetAddress();                      // 会发生内存泄露！没有delete
                 Socket *clnt_sock = new Socket(serverSocket->accept(clnt_addr)); // 会发生内存泄露！没有delete
                 printf("new client fd %d! IP: %s Port: %d\n", clnt_sock->getFd(), inet_ntoa(clnt_addr->addr.sin_addr), ntohs(clnt_addr->addr.sin_port));
                 clnt_sock->setnonblocking();
-                epoll->addFd(clnt_sock->getFd(), EPOLLIN | EPOLLET);
+                Channel *clntChannel = new Channel(epoll, clnt_sock->getFd());
+                clntChannel->enableReading();
             }
-            else if (events[i].events & EPOLLIN)
+            else if (channels[i]->getRevents() & EPOLLIN)
             {
-                handleReadEvent(events[i].data.fd);
+                handleReadEvent(channels[i]->getFd());
             }
             else
             {
@@ -75,5 +77,7 @@ int main()
             }
         }
     }
+    delete serverSocket;
+    delete serverAddr;
     return 0;
 }
