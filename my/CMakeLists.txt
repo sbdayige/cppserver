@@ -25,10 +25,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 # Build helper library for tools
 add_library(tools STATIC ${SRC_DIR}/tools/tools.cpp)
 # expose tools headers (tools/tools.h) to consumers
-target_include_directories(tools PUBLIC ${SRC_DIR} ${SRC_DIR}/tools)
+target_include_directories(tools PUBLIC ${SRC_DIR} ${SRC_DIR}/tools ${SRC_DIR}/include)
 
 # Core/achieve sources (Socket, InetAddress, Epoll, ...)
-file(GLOB CORE_SOURCES ${SRC_DIR}/achieve/*.cpp)
+# Collect .cpp sources recursively to match current layout
+file(GLOB_RECURSE CORE_SOURCES ${SRC_DIR}/achieve/*.cpp)
 add_library(core STATIC ${CORE_SOURCES})
 target_include_directories(core PUBLIC ${SRC_DIR} ${SRC_DIR}/include ${SRC_DIR}/achieve)
 target_compile_options(core PRIVATE -Wall -Wextra)
@@ -36,7 +37,8 @@ target_compile_options(core PRIVATE -Wall -Wextra)
 add_executable(client ${SRC_DIR}/client.cpp)
 target_compile_options(client PRIVATE -Wall -Wextra)
 target_include_directories(client PRIVATE ${SRC_DIR} ${SRC_DIR}/tools ${SRC_DIR}/include)
-target_link_libraries(client PRIVATE Threads::Threads)
+# link client with core/tools in case it depends on core symbols
+target_link_libraries(client PRIVATE core tools Threads::Threads)
 
 add_executable(server ${SRC_DIR}/server.cpp)
 target_compile_options(server PRIVATE -Wall -Wextra)
