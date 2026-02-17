@@ -3,6 +3,7 @@
 #include "include/Server.h"
 #include "include/Channel.h"
 #include "include/InetAddress.h"
+#include "include/Acceptor.h"
 #include <functional>
 #include <string.h>
 #include <unistd.h>
@@ -11,22 +12,16 @@
 
 #define READ_BUFFER 1024
 
-Server::Server(EventLoop *_loop) : loop(_loop)
+Server::Server(EventLoop *_loop) : loop(_loop), acceptor(nullptr)
 {
-    Socket *socket = new Socket();
-    InetAddress *serv_addr = new InetAddress("127.0.0.1", 8888);
-    socket->bind(serv_addr);
-    socket->listen();
-    socket->setnonblocking();
-
-    Channel *servChannel = new Channel(loop, socket->getFd());
-    std::function<void()> cb = std::bind(&Server::newConnection, this, socket);
-    servChannel->setCallback(cb);
-    servChannel->enableReading();
+    acceptor = new Acceptor(loop);
+    std::function<void(Socket *)> cb = std::bind(&Server::newConnection, this, std::placeholders::_1);
+    acceptor->setNewConnectionCallback(cb);
 }
 
 Server::~Server()
 {
+    delete acceptor;
 }
 
 void Server::handleReadEvent(int sockfd)
@@ -39,7 +34,10 @@ void Server::handleReadEvent(int sockfd)
         if (bytes_read > 0)
         {
             printf("message from client fd %d: %s\n", sockfd, buf);
-            write(sockfd, buf, sizeof(buf));
+            if (write(sockfd, buf, bytes_read) == -1)
+            { // check return value
+                perror("write error");
+            }
         }
         else if (bytes_read == -1 && errno == EINTR)
         { // 客户端正常中断、继续读取
