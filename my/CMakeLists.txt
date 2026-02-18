@@ -30,8 +30,13 @@ target_include_directories(tools PUBLIC ${SRC_DIR} ${SRC_DIR}/tools ${SRC_DIR}/i
 # Core/achieve sources (Socket, InetAddress, Epoll, ...)
 # Collect .cpp sources recursively to match current layout
 file(GLOB_RECURSE CORE_SOURCES ${SRC_DIR}/achieve/*.cpp)
+# If a ThreadPool implementation exists directly under achieve, ensure it's included
+if(EXISTS ${SRC_DIR}/achieve/ThreadPool.cpp)
+  list(APPEND CORE_SOURCES ${SRC_DIR}/achieve/ThreadPool.cpp)
+endif()
 add_library(core STATIC ${CORE_SOURCES})
-target_include_directories(core PUBLIC ${SRC_DIR} ${SRC_DIR}/include ${SRC_DIR}/achieve)
+target_include_directories(core PUBLIC ${SRC_DIR} ${SRC_DIR}/include ${SRC_DIR}/achieve ${SRC_DIR}/tools)
+target_link_libraries(core PUBLIC Threads::Threads)
 target_compile_options(core PRIVATE -Wall -Wextra)
 
 add_executable(client ${SRC_DIR}/client.cpp)
@@ -42,7 +47,7 @@ target_link_libraries(client PRIVATE core tools Threads::Threads)
 
 add_executable(server ${SRC_DIR}/server.cpp)
 target_compile_options(server PRIVATE -Wall -Wextra)
-target_include_directories(server PRIVATE ${SRC_DIR} ${SRC_DIR}/tools ${SRC_DIR}/include)
+target_include_directories(server PRIVATE ${SRC_DIR} ${SRC_DIR}/tools ${SRC_DIR}/include ${SRC_DIR}/achieve)
 target_link_libraries(server PRIVATE core tools Threads::Threads)
 
 message(STATUS "Configuring cppserver (client + server) in ${CMAKE_CURRENT_SOURCE_DIR}")
