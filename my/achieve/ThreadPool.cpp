@@ -18,7 +18,11 @@ ThreadPool::ThreadPool(int size) : stop(false)
                     task = tasks.front();
                     tasks.pop();
                 }
-                task();
+                try {
+                    task();
+                } catch(const std::exception &e) {
+                    fprintf(stderr, "ThreadPool task exception: %s\n", e.what());
+                }
             } }));
     }
 }
@@ -35,15 +39,4 @@ ThreadPool::~ThreadPool()
         if (t.joinable())
             t.join();
     }
-}
-
-void ThreadPool::add(std::function<void()> func)
-{
-    {
-        std::unique_lock<std::mutex> lock(tasks_mtx);
-        if (stop)
-            throw std::runtime_error("ThreadPool already stop, can't add task any more");
-        tasks.emplace(func);
-    }
-    cv.notify_one();
 }
