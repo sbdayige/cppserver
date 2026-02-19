@@ -5,19 +5,36 @@
 #include "include/InetAddress.h"
 #include "include/Acceptor.h"
 #include "include/Connection.h"
+#include "include/ThreadPool.h"
 #include <functional>
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#include <thread>
 
 #define READ_BUFFER 1024
 
-Server::Server(EventLoop *_loop) : loop(_loop), acceptor(nullptr)
+Server::Server(EventLoop *_loop) : mainReactor(_loop), acceptor(nullptr), thpool(nullptr)
 {
-    acceptor = new Acceptor(loop);
+    acceptor = new Acceptor(mainReactor);
     std::function<void(Socket *)> cb = std::bind(&Server::newConnection, this, std::placeholders::_1);
     acceptor->setNewConnectionCallback(cb);
+
+    int size = std::thread::hardware_concurrency();
+    if (size <= 0)
+        size = 4;
+    thpool = new ThreadPool(size);
+    for (int i = 0; i < size; ++i)
+    {
+        subReactors.push_back(new EventLoop());
+    }
+
+    for (int i = 0; i < size; ++i)
+    {
+        std::function<void()> sub_loop = std::bind(&EventLoop::loop, subReactors[i]);
+        thpool->add(sub_loop);
+    }
 }
 
 Server::~Server()
@@ -27,11 +44,18 @@ Server::~Server()
     {
         delete item.second;
     }
+    for (auto &r : subReactors)
+    {
+        delete r;
+    }
+    delete thpool;
 }
 
 void Server::newConnection(Socket *sock)
 {
-    Connection *conn = new Connection(loop, sock);
+    int idx = sock->getFd() % subReactors.size();
+    EventLoop *sub = subReactors[idx];
+    Connection *conn = new Connection(sub, sock);
     std::function<void(Socket *)> cb = std::bind(&Server::deleteConnection, this, std::placeholders::_1);
     conn->setDeleteConnectionCallback(cb);
     connections[sock->getFd()] = conn;
