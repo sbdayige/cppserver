@@ -15,6 +15,7 @@ private:
     std::map<int, Connection *> connections;
     std::vector<EventLoop *> subReactors;
     ThreadPool *thpool;
+    std::function<void(Connection *)> onConnectionCallback;
 
 public:
     Server(EventLoop *);
@@ -22,4 +23,5 @@ public:
 
     void newConnection(Socket *sock);
     void deleteConnection(Socket *sock);
+    void OnConnect(std::function<void(Connection *)> cb);
 };

@@ -37,6 +37,11 @@ Server::Server(EventLoop *_loop) : mainReactor(_loop), acceptor(nullptr), thpool
     }
 }
 
+void Server::OnConnect(std::function<void(Connection *)> cb)
+{
+    onConnectionCallback = cb;
+}
+
 Server::~Server()
 {
     delete acceptor;
@@ -58,6 +63,7 @@ void Server::newConnection(Socket *sock)
     Connection *conn = new Connection(sub, sock);
     std::function<void(Socket *)> cb = std::bind(&Server::deleteConnection, this, std::placeholders::_1);
     conn->setDeleteConnectionCallback(cb);
+    conn->setOnConnectionCallback(onConnectionCallback);
     connections[sock->getFd()] = conn;
 }
 
